@@ -80,7 +80,7 @@ class Formula {
 public:
 	Formula (const Formula& formula) 
 	: clear_literals(formula.clear_literals), lit2clause(formula.lit2clause), 
-	  clauses(formula.clauses), contain_false(formula.contain_false){		
+	  clauses(formula.clauses), single_clauses(formula.single_clauses), contain_false(formula.contain_false){		
 		for (auto it = clauses.begin(); it != clauses.end(); it++)
 			(*it)->ref();
 		for (auto it = lit2clause.begin(); it != lit2clause.end(); it++)
@@ -89,7 +89,8 @@ public:
 	}
 
 	Formula (set<Clause *>& clauses, int num_literals) 
-	: clauses(clauses), lit2clause(Literal2Clause(num_literals)), contain_false(false){
+	: clauses(clauses), lit2clause(Literal2Clause(num_literals)), 
+	  single_clauses(set<Clause *>()), contain_false(false){
 		for (int i = 0; i<num_literals; i++){
 			lit2clause[i] = NULL;
 		}
@@ -101,6 +102,8 @@ public:
 					lit2clause[literal] = new ClauseSet();
 				lit2clause[literal]->insert(curr_clause);
 			}
+			if (curr_clause->size() == 1)
+				single_clauses.insert(curr_clause);
 		}
 	}
 	
@@ -114,19 +117,9 @@ public:
 	
 	void removeSingleClauses(){
 		// checkConsistency("removeSingleClauses1");
-		bool have_single_clauses = true;
-		while(have_single_clauses){
-			// cout << "still removing" << endl;
-			have_single_clauses = false;
-			for (auto it = clauses.begin(); it!= clauses.end(); it++){
-				if ((*it)->size() == 1)
-				{
-					// cout << "have_single" << endl;
-					have_single_clauses = true;
-					this->removeLiteral(*((*it)->begin()));
-					break;
-				}
-			}
+		while(not single_clauses.empty()){
+			Clause *curr_clause = *single_clauses.begin();
+			this->removeLiteral(*(curr_clause->begin()));
 		}
 		// checkConsistency("removeSingleClauses2");
 	}
@@ -159,7 +152,6 @@ public:
 	
 	int removeLiteral(Literal *literal){
 		// formula_copy->checkConsistency("copy1");
-		// cout << literal;
 		if (not lit2clause.find(literal)){
 			// cout << "problem";
 			return -1;}
@@ -198,7 +190,7 @@ private:
 	vector<Literal *> clear_literals;
 	Literal2Clause lit2clause;
 	set<Clause *> clauses;
-	// vector<Clause *> single_clauses;
+	set<Clause *> single_clauses;
 	bool contain_false;
 	
 	void removeClausesWithLiteral(Literal *literal){
@@ -209,6 +201,8 @@ private:
 			Clause * curr_clause = *it;
 			// cout << "erase1\n";
 			clauses.erase(curr_clause);
+			if (curr_clause->size() == 1)
+				single_clauses.erase(curr_clause);
 			// cout << "erase1 end\n";
 			for (auto it2 = (curr_clause)->begin(); it2 != (curr_clause)->end(); it2++){
 				Literal* curr_lit = *it2;
@@ -286,7 +280,7 @@ private:
 	void removeLiteralFromClauses(Literal *literal){
 		for (auto it = lit2clause[literal]->begin();it!=lit2clause[literal]->end();++it){
 			Clause *curr_clause = *it;
-			if (not (curr_clause)->lastRef()){
+			if (not curr_clause->lastRef()){
 				// cout << "not lastRef" << endl;
 				Clause* new_clause = new Clause(*curr_clause);
 				// formula_copy->checkConsistency("copy3.2100");
@@ -301,8 +295,7 @@ private:
 				// formula_copy->checkConsistency("copy3.2400");
 				new_clause->erase(literal);
 				// formula_copy->checkConsistency("copy3.2500");
-				if (new_clause->empty())
-					contain_false = true;
+				
 				// formula_copy->checkConsistency("copy3.200");
 				for (auto it2 = new_clause->begin(); it2 != new_clause->end(); it2++){
 					Literal *curr_lit = *it2;
@@ -316,14 +309,19 @@ private:
 					map_lit->erase(curr_clause);
 					map_lit->insert(new_clause);
 				}
+				curr_clause = new_clause;
 				// formula_copy->checkConsistency("copy3.100");
 
 			} else{
 				curr_clause->erase(literal);
-				if (curr_clause->empty())
-					contain_false = true;
 				// formula_copy->checkConsistency("copy3.000");
 			}
+			if (curr_clause->empty()){
+				single_clauses.erase(curr_clause);
+				contain_false = true;
+			}
+			if (curr_clause->size() == 1)
+				single_clauses.insert(curr_clause);
 		}
 		lit2clause[literal]->unref();
 		lit2clause.erase(literal);
