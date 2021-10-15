@@ -78,14 +78,22 @@ ClauseSet*& Literal2Clause::operator[] (const int idx){
 
 class Formula {
 public:
-	Formula (set<Clause *> *old_clauses, Literal2Clause lit2clause) 
-		: clauses(new set<Clause *>(*old_clauses)), lit2clause(lit2clause), contain_false(false){}
-		
-	Formula (set<Clause *> *clauses, int num_literals):clauses(clauses), lit2clause(Literal2Clause(num_literals)), contain_false(false){
+	Formula (const Formula& formula) 
+	: clear_literals(formula.clear_literals), lit2clause(formula.lit2clause), 
+	  clauses(formula.clauses), contain_false(formula.contain_false){		
+		for (auto it = clauses.begin(); it != clauses.end(); it++)
+			(*it)->ref();
+		for (auto it = lit2clause.begin(); it != lit2clause.end(); it++)
+			if (*it)
+				(*it)->ref();
+	}
+
+	Formula (set<Clause *>& clauses, int num_literals) 
+	: clauses(clauses), lit2clause(Literal2Clause(num_literals)), contain_false(false){
 		for (int i = 0; i<num_literals; i++){
 			lit2clause[i] = NULL;
 		}
-		for (auto it = clauses->begin(); it!= clauses->end(); it++){
+		for (auto it = clauses.begin(); it!= clauses.end(); it++){
 			Clause* curr_clause = *it;
 			for (auto it2 = curr_clause->begin(); it2 != curr_clause->end(); it2++){
 				Literal* literal = *it2;
@@ -97,8 +105,8 @@ public:
 	}
 	
 	Literal* chooseLiteral(){
-		Clause* min_clause = *clauses->begin();
-		for (auto it = clauses->begin();it!=clauses->end();it++)
+		Clause* min_clause = *clauses.begin();
+		for (auto it = clauses.begin();it!=clauses.end();it++)
 			if ((*it)->size() < min_clause->size())
 				min_clause = *it;
 		return *(min_clause->begin());
@@ -110,7 +118,7 @@ public:
 		while(have_single_clauses){
 			// cout << "still removing" << endl;
 			have_single_clauses = false;
-			for (auto it = clauses->begin(); it!= clauses->end(); it++){
+			for (auto it = clauses.begin(); it!= clauses.end(); it++){
 				if ((*it)->size() == 1)
 				{
 					// cout << "have_single" << endl;
@@ -172,35 +180,25 @@ public:
 	}
 		
 	bool isEmpty(){
-		return clauses->empty();
+		return clauses.empty();
 	}
 	
 	bool containFalse(){
 		return contain_false;
 	}
 	
-	Formula* makeCopy(){
-		Formula* new_formula = new Formula(clauses, lit2clause);
-		for (auto it = clauses->begin(); it!= clauses->end(); it++)
-			(*it)->ref();
-		for (auto it = lit2clause.begin(); it!= lit2clause.end(); it++)
-			if (*it)
-				(*it)->ref();
-		return new_formula;
-	}
-	
 	~Formula() {
 		for (auto it = lit2clause.begin(); it != lit2clause.end(); it++)
 			if (*it)
 				(*it)->unref();
-		for (auto it = clauses->begin(); it != clauses->end(); it++)
+		for (auto it = clauses.begin(); it != clauses.end(); it++)
 			(*it)->unref();
-		delete clauses;
 	}
 private:
 	vector<Literal *> clear_literals;
 	Literal2Clause lit2clause;
-	set<Clause *> *clauses;
+	set<Clause *> clauses;
+	// vector<Clause *> single_clauses;
 	bool contain_false;
 	
 	void removeClausesWithLiteral(Literal *literal){
@@ -210,7 +208,7 @@ private:
 		for (auto it = map_literal->begin();it!=map_literal->end();++it){
 			Clause * curr_clause = *it;
 			// cout << "erase1\n";
-			clauses->erase(curr_clause);
+			clauses.erase(curr_clause);
 			// cout << "erase1 end\n";
 			for (auto it2 = (curr_clause)->begin(); it2 != (curr_clause)->end(); it2++){
 				Literal* curr_lit = *it2;
@@ -293,10 +291,10 @@ private:
 				Clause* new_clause = new Clause(*curr_clause);
 				// formula_copy->checkConsistency("copy3.2100");
 				// cout << formula_copy->clauses->size() <<endl;
-				clauses->erase(curr_clause);
+				clauses.erase(curr_clause);
 				// formula_copy->checkConsistency("copy3.2200");
 				// cout << formula_copy->clauses->size() <<endl;
-				clauses->insert(new_clause);
+				clauses.insert(new_clause);
 				// cout << formula_copy->clauses->size() <<endl;
 				// formula_copy->checkConsistency("copy3.2300");
 				curr_clause->unref();
@@ -385,7 +383,7 @@ int main(int argc, char *argv[]) {
 	int var_num;
 	int clause_num;
 	Literal *literals;
-	set<Clause *> *clauses = new set<Clause *>;
+	set<Clause *> clauses = set<Clause *>();
 	Clause *curr_clause = new Clause;
 	int curr_clause_num = 0;
 	int curr_num;
@@ -409,7 +407,7 @@ int main(int argc, char *argv[]) {
 		istringstream iss(line);
 		while (iss >> curr_num) {
 			if (curr_num == 0){
-				clauses->insert(curr_clause);
+				clauses.insert(curr_clause);
 				curr_clause_num++;
 				if (curr_clause_num < clause_num)
 					curr_clause = new Clause;
@@ -453,7 +451,7 @@ int main(int argc, char *argv[]) {
 		// cout << "choose Literal" << endl;
 		Literal *removed_literal = formula->chooseLiteral();
 		// cout << "make copy" << endl;
-		Formula *formula_copy = formula->makeCopy();
+		Formula *formula_copy = new Formula(*formula);
 		// formula->checkConsistency("formula");
 		// formula_copy->checkConsistency("formula2");
 		// cout << "remove literal" << endl;
