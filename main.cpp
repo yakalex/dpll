@@ -79,7 +79,7 @@ ClauseSet*& Literal2Clause::operator[] (const int idx){
 class Formula {
 public:
 	Formula (const Formula& formula) 
-	: clear_literals(formula.clear_literals), lit2clause(formula.lit2clause), 
+	: lit2clause(formula.lit2clause), 
 	  clauses(formula.clauses), single_clauses(formula.single_clauses), contain_false(formula.contain_false){		
 		for (auto it = clauses.begin(); it != clauses.end(); it++)
 			(*it)->ref();
@@ -124,14 +124,14 @@ public:
 		// checkConsistency("removeSingleClauses2");
 	}
 
-	void removeDefinitelyClearLiterals(){
-		while (not clear_literals.empty())
-		{
-			Literal *curr_lit = clear_literals.back();
-			clear_literals.pop_back();
-			if (lit2clause.find(curr_lit))
-				this->removeClausesWithLiteral(curr_lit);
-		}
+	// void removeDefinitelyClearLiterals(){
+	// 	while (not clear_literals.empty())
+	// 	{
+	// 		Literal *curr_lit = clear_literals.back();
+	// 		clear_literals.pop_back();
+	// 		if (lit2clause.find(curr_lit))
+	// 			this->removeClausesWithLiteral(curr_lit);
+	// 	}
 
 
 		// bool have_clear_literals = true;
@@ -148,7 +148,7 @@ public:
 		// 		}
 		// 	}
 		// }
-	}
+	// }
 	
 	int removeLiteral(Literal *literal){
 		// formula_copy->checkConsistency("copy1");
@@ -187,7 +187,7 @@ public:
 			(*it)->unref();
 	}
 private:
-	vector<Literal *> clear_literals;
+	// vector<Literal *> clear_literals;
 	Literal2Clause lit2clause;
 	set<Clause *> clauses;
 	set<Clause *> single_clauses;
@@ -211,7 +211,7 @@ private:
 					if (lit_set->size() == 1){
 						lit_set->unref();
 						lit2clause.erase(curr_lit);
-						clear_literals.push_back(curr_lit->con_lit);
+						// clear_literals.push_back(curr_lit->con_lit);
 					} else{
 						if (not lit_set->lastRef()){
 							// cout << "in not last ref" << endl;
@@ -425,7 +425,7 @@ int main(int argc, char *argv[]) {
 	// for (int i = 0; i < 1; i++) {
 		// cout << stack->size() << endl;
 		// cout << "removeSingleClauses" << endl;
-		formula->removeDefinitelyClearLiterals();
+		// formula->removeDefinitelyClearLiterals();
 		formula->removeSingleClauses();
 		// cout << "end removeSingleClauses" << endl;
 
