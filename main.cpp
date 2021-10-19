@@ -4,7 +4,6 @@
 #include <vector>
 #include <sstream>
 #include <set>
-#include <map>
 
 using namespace std;
 struct Literal {
@@ -422,7 +421,8 @@ int main(int argc, char *argv[]) {
 
 	vector<Formula *> stack;
 	while (true){
-	// for (int i = 0; i < 1; i++) {
+	// int i = 0;
+	// for (i = 0; i < 65; i++) {
 		// cout << stack->size() << endl;
 		// cout << "removeSingleClauses" << endl;
 		// formula->removeDefinitelyClearLiterals();
@@ -435,16 +435,16 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 		if (formula->containFalse()){
+			if(stack.empty()){
+				cout << "here";
+				break;
+			}
 			delete formula;
-			if(formula = stack.back()){
-				stack.pop_back();
+			formula = stack.back();
+			stack.pop_back();
 				// cout << stack->size();
 				// cout << "continue\n";
-				continue;
-			}
-			else {
-			// cout << "break\n";
-				break;}
+			continue;
 		}
 		// cout << "choose Literal" << endl;
 		Literal *removed_literal = formula->chooseLiteral();
@@ -459,9 +459,12 @@ int main(int argc, char *argv[]) {
 		// cout << "remove literal2" << endl;
 		if ((formula_copy->removeLiteral(removed_literal->con_lit)) == 0)
 			stack.push_back(formula_copy);
+		else
+			delete formula_copy;
 		// cout << "end" << endl;
 
 	}
+	// cout << i;
 	delete formula;
 	for (auto it = stack.begin(); it != stack.end();it++)
 		delete *it;
