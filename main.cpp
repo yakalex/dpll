@@ -315,12 +315,12 @@ private:
 				curr_clause->erase(literal);
 				// formula_copy->checkConsistency("copy3.000");
 			}
-			if (curr_clause->empty()){
+			if (curr_clause->size() == 1)
+				single_clauses.insert(curr_clause);
+			else if (curr_clause->empty()){
 				single_clauses.erase(curr_clause);
 				contain_false = true;
 			}
-			if (curr_clause->size() == 1)
-				single_clauses.insert(curr_clause);
 		}
 		lit2clause[literal]->unref();
 		lit2clause.erase(literal);
@@ -426,6 +426,22 @@ int main(int argc, char *argv[]) {
 		// cout << stack->size() << endl;
 		// cout << "removeSingleClauses" << endl;
 		// formula->removeDefinitelyClearLiterals();
+		if (formula->isEmpty()){
+			// cout << "isEmpty\n";
+			res = true;
+			break;
+		}
+		if (formula->containFalse()){
+			if(stack.empty()){
+				break;
+			}
+			delete formula;
+			formula = stack.back();
+			stack.pop_back();
+				// cout << stack->size();
+				// cout << "continue\n";
+			continue;
+		}
 		formula->removeSingleClauses();
 		// cout << "end removeSingleClauses" << endl;
 
@@ -436,7 +452,6 @@ int main(int argc, char *argv[]) {
 		}
 		if (formula->containFalse()){
 			if(stack.empty()){
-				cout << "here";
 				break;
 			}
 			delete formula;
