@@ -226,12 +226,12 @@ int main(int argc, char *argv[]) {
 	std::ifstream input(file_name);
 	std::string line;
 	std::string dump;
-	int var_num;
-	int clause_num;
+	size_t var_num;
+	size_t clause_num;
 	Literal *literals;
 	std::set<Clause *> clauses = std::set<Clause *>();
 	Clause *curr_clause = new Clause;
-	int curr_clause_num = 0;
+	size_t curr_clause_num = 0;
 	int curr_num;
 	while(std::getline(input, line)){
 		if (line[0] == 'c')
@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
 			std::istringstream iss(line);
 			iss >> dump >> dump >> var_num >> clause_num;
 			literals = new Literal[2 * var_num];
-			for (int i = 0; i < var_num; i++){
+			for (size_t i = 0; i < var_num; i++){
 				literals[i].idx = i;
 				literals[i].con_lit = literals + i + var_num;
 				literals[i + var_num].idx = i + var_num;
