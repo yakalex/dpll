@@ -8,13 +8,13 @@
 using namespace std;
 struct Literal {
 public:
-	int idx;
+	size_t idx;
 	Literal *con_lit;
 };
 
 class Clause : public set<Literal *>{
 private:
-	int refs = 1;
+	size_t refs = 1;
 public:
 	Clause()
 		: set<Literal *>(), refs(1){}
@@ -34,14 +34,14 @@ public:
 		return refs == 1;
 	}
 };
-class ClauseSet : public set<Clause *>{
+class ClauseSet : public set<size_t>{
 private:
-	int refs = 1;
+	size_t refs = 1;
 public:
 	ClauseSet()
-	: set<Clause *>(), refs(1){}
+	: set<size_t>(), refs(1){}
 	ClauseSet(const ClauseSet &clause_set)
-		: set<Clause *>(clause_set), refs(1){}
+		: set<size_t>(clause_set), refs(1){}
 	void ref(){
 		refs++;
 	}
@@ -57,9 +57,9 @@ public:
 
 class Literal2Clause : public vector<ClauseSet *>{
 public:
-	Literal2Clause(int num_literals) : vector<ClauseSet *>(num_literals){}
+	Literal2Clause(size_t num_literals) : vector<ClauseSet *>(num_literals){}
 	ClauseSet*& operator[] (const Literal* literal);
-	ClauseSet*& operator[] (const int idx);
+	ClauseSet*& operator[] (const size_t idx);
 	bool find(Literal* literal){
 		return operator[](literal) != NULL;
 	}
@@ -71,7 +71,7 @@ public:
 ClauseSet*& Literal2Clause::operator[] (const Literal* literal){
 	return vector<ClauseSet *>::operator[](literal->idx);
 }
-ClauseSet*& Literal2Clause::operator[] (const int idx){
+ClauseSet*& Literal2Clause::operator[] (const size_t idx){
 	return vector<ClauseSet *>::operator[](idx);
 }
 
@@ -81,43 +81,50 @@ public:
 	: lit2clause(formula.lit2clause), 
 	  clauses(formula.clauses), single_clauses(formula.single_clauses), contain_false(formula.contain_false){		
 		for (auto it = clauses.begin(); it != clauses.end(); it++)
-			(*it)->ref();
+			if (*it)
+				(*it)->ref();
 		for (auto it = lit2clause.begin(); it != lit2clause.end(); it++)
 			if (*it)
 				(*it)->ref();
 	}
 
-	Formula (set<Clause *>& clauses, int num_literals) 
-	: clauses(clauses), lit2clause(Literal2Clause(num_literals)), 
-	  single_clauses(set<Clause *>()), contain_false(false){
-		for (int i = 0; i<num_literals; i++){
-			lit2clause[i] = NULL;
+	Formula (set<Clause *>& set_clauses, size_t num_literals) 
+	: clauses(vector<Clause *>(set_clauses.begin(),set_clauses.end())), lit2clause(Literal2Clause(num_literals)), 
+	  single_clauses(set<size_t>()), contain_false(false){
+		for (size_t i = 0; i<num_literals; i++){
+			lit2clause[i] = nullptr;
 		}
-		for (auto it = clauses.begin(); it!= clauses.end(); it++){
-			Clause* curr_clause = *it;
+		for (size_t i = 0; i<clauses.size(); i++){
+			Clause* curr_clause = clauses[i];
 			for (auto it2 = curr_clause->begin(); it2 != curr_clause->end(); it2++){
 				Literal* literal = *it2;
 				if (not lit2clause.find(literal))
 					lit2clause[literal] = new ClauseSet();
-				lit2clause[literal]->insert(curr_clause);
+				lit2clause[literal]->insert(i);
 			}
 			if (curr_clause->size() == 1)
-				single_clauses.insert(curr_clause);
+				single_clauses.insert(i);
 		}
 	}
 	
 	Literal* chooseLiteral(){
-		Clause* min_clause = *clauses.begin();
-		for (auto it = clauses.begin();it!=clauses.end();it++)
-			if ((*it)->size() < min_clause->size())
-				min_clause = *it;
+		Clause* min_clause = nullptr;
+		for (size_t i = 0; i < clauses.size(); i++)
+			if (clauses[i])
+				if (not (min_clause)){
+					min_clause = clauses[i];
+				} else {
+					if (clauses[i]->size() < min_clause->size())
+						min_clause = clauses[i];
+				}
+
 		return *(min_clause->begin());
 	}
 	
 	void removeSingleClauses(){
 		// checkConsistency("removeSingleClauses1");
 		while(not single_clauses.empty()){
-			Clause *curr_clause = *single_clauses.begin();
+			Clause *curr_clause = clauses[*single_clauses.begin()];
 			this->removeLiteral(*(curr_clause->begin()));
 		}
 		// checkConsistency("removeSingleClauses2");
@@ -171,7 +178,10 @@ public:
 	}
 		
 	bool isEmpty(){
-		return clauses.empty();
+		for (auto it = clauses.begin(); it != clauses.end(); it++)
+			if (*it)
+				return false;
+		return true;
 	}
 	
 	bool containFalse(){
@@ -183,13 +193,14 @@ public:
 			if (*it)
 				(*it)->unref();
 		for (auto it = clauses.begin(); it != clauses.end(); it++)
-			(*it)->unref();
+			if (*it)
+				(*it)->unref();
 	}
 private:
 	// vector<Literal *> clear_literals;
 	Literal2Clause lit2clause;
-	set<Clause *> clauses;
-	set<Clause *> single_clauses;
+	vector<Clause *> clauses;
+	set<size_t> single_clauses;
 	bool contain_false;
 	
 	void removeClausesWithLiteral(Literal *literal){
@@ -197,11 +208,12 @@ private:
 		// checkConsistency("removeClausesWithLiteral1");
 		ClauseSet * map_literal = lit2clause[literal];
 		for (auto it = map_literal->begin();it!=map_literal->end();++it){
-			Clause * curr_clause = *it;
+			size_t clause_num = *it;
+			Clause * curr_clause = clauses[clause_num];
 			// cout << "erase1\n";
-			clauses.erase(curr_clause);
+			clauses[clause_num] = nullptr;
 			if (curr_clause->size() == 1)
-				single_clauses.erase(curr_clause);
+				single_clauses.erase(clause_num);
 			// cout << "erase1 end\n";
 			for (auto it2 = (curr_clause)->begin(); it2 != (curr_clause)->end(); it2++){
 				Literal* curr_lit = *it2;
@@ -223,7 +235,7 @@ private:
 							lit_set = new_set;
 						}
 						// cout << "erase\n";
-						lit_set->erase(curr_clause);
+						lit_set->erase(clause_num);
 					}
 				}
 			}
@@ -278,16 +290,16 @@ private:
 
 	void removeLiteralFromClauses(Literal *literal){
 		for (auto it = lit2clause[literal]->begin();it!=lit2clause[literal]->end();++it){
-			Clause *curr_clause = *it;
+			size_t clause_num = *it;
+			Clause *curr_clause = clauses[clause_num];
 			if (not curr_clause->lastRef()){
 				// cout << "not lastRef" << endl;
 				Clause* new_clause = new Clause(*curr_clause);
 				// formula_copy->checkConsistency("copy3.2100");
 				// cout << formula_copy->clauses->size() <<endl;
-				clauses.erase(curr_clause);
+				clauses[clause_num] = new_clause;
 				// formula_copy->checkConsistency("copy3.2200");
 				// cout << formula_copy->clauses->size() <<endl;
-				clauses.insert(new_clause);
 				// cout << formula_copy->clauses->size() <<endl;
 				// formula_copy->checkConsistency("copy3.2300");
 				curr_clause->unref();
@@ -296,18 +308,18 @@ private:
 				// formula_copy->checkConsistency("copy3.2500");
 				
 				// formula_copy->checkConsistency("copy3.200");
-				for (auto it2 = new_clause->begin(); it2 != new_clause->end(); it2++){
-					Literal *curr_lit = *it2;
-					ClauseSet *map_lit = lit2clause[curr_lit];
-					if (not map_lit->lastRef()){
-						ClauseSet* new_set = new ClauseSet(*map_lit);
-						map_lit->unref();
-						lit2clause[curr_lit] = new_set;
-						map_lit = new_set;
-					}
-					map_lit->erase(curr_clause);
-					map_lit->insert(new_clause);
-				}
+				// for (auto it2 = new_clause->begin(); it2 != new_clause->end(); it2++){
+				// 	Literal *curr_lit = *it2;
+				// 	ClauseSet *map_lit = lit2clause[curr_lit];
+				// 	if (not map_lit->lastRef()){
+				// 		ClauseSet* new_set = new ClauseSet(*map_lit);
+				// 		map_lit->unref();
+				// 		lit2clause[curr_lit] = new_set;
+				// 		map_lit = new_set;
+				// 	}
+				// 	map_lit->erase(curr_clause);
+				// 	map_lit->insert(new_clause);
+				// }
 				curr_clause = new_clause;
 				// formula_copy->checkConsistency("copy3.100");
 
@@ -316,9 +328,9 @@ private:
 				// formula_copy->checkConsistency("copy3.000");
 			}
 			if (curr_clause->size() == 1)
-				single_clauses.insert(curr_clause);
+				single_clauses.insert(clause_num);
 			else if (curr_clause->empty()){
-				single_clauses.erase(curr_clause);
+				single_clauses.erase(clause_num);
 				contain_false = true;
 			}
 		}
@@ -426,22 +438,6 @@ int main(int argc, char *argv[]) {
 		// cout << stack->size() << endl;
 		// cout << "removeSingleClauses" << endl;
 		// formula->removeDefinitelyClearLiterals();
-		if (formula->isEmpty()){
-			// cout << "isEmpty\n";
-			res = true;
-			break;
-		}
-		if (formula->containFalse()){
-			if(stack.empty()){
-				break;
-			}
-			delete formula;
-			formula = stack.back();
-			stack.pop_back();
-				// cout << stack->size();
-				// cout << "continue\n";
-			continue;
-		}
 		formula->removeSingleClauses();
 		// cout << "end removeSingleClauses" << endl;
 
